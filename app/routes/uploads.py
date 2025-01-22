@@ -1,40 +1,34 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
-import shutil
-import os
+from .analysis import analyze_data
 
 router = APIRouter()
 
 @router.post("/")
 async def upload_file(file: UploadFile = File(...)):
     try:
-        # Validate file type if needed
-        allowed_types = ["text/csv", "application/json", "application/vnd.ms-excel"]
-        if file.content_type not in allowed_types:
+        # Validate file type
+        if not file.filename or not file.filename.lower().endswith('.pdf'):
             raise HTTPException(
-                status_code=400, 
-                detail=f"File type {file.content_type} not supported"
+                status_code=400,
+                detail="Only PDF files are supported"
             )
 
-        # Create upload directory if it doesn't exist
-        upload_dir = "uploaded_files"
-        os.makedirs(upload_dir, exist_ok=True)
-        
-        # Save file
-        file_path = f"{upload_dir}/{file.filename}"
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        
-        # Return success response with file details
-        return {
-            "status": "success",
-            "filename": file.filename,
-            "file_path": file_path,
-            "content_type": file.content_type,
-            "size": os.path.getsize(file_path)  # File size in bytes
-        }
+        # Process file
+        try:
+            result = await analyze_data(file)
+            return result
+        except Exception as e:
+            import traceback
+            print(f"Analysis error at:\n{traceback.format_exc()}")  # Shows full stack trace
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error processing file: {str(e)}"
+            )
 
     except Exception as e:
+        import traceback
+        print(f"Upload error at:\n{traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to upload file: {str(e)}"
+            detail=f"Upload failed: {str(e)}"
         )
