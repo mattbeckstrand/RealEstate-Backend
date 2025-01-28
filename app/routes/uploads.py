@@ -7,10 +7,19 @@ router = APIRouter()
 async def upload_file(file: UploadFile = File(...)):
     try:
         # Validate file type
-        if not file.filename or not file.filename.lower().endswith('.pdf'):
+        if not file.filename:
             raise HTTPException(
                 status_code=400,
-                detail="Only PDF files are supported"
+                detail="No filename provided"
+            )
+        
+        filename_lower = file.filename.lower()
+        valid_extensions = ('.pdf', '.xlsx', '.xls')
+
+        if not any(filename_lower.endswith(ext) for ext in valid_extensions):
+            raise HTTPException(
+                status_code=400,
+                detail='only pdf, xls, and xlsx files supported'
             )
 
         # Process file

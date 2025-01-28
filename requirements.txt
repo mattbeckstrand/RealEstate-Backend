@@ -4,3 +4,7 @@ sqlalchemy
 pydantic
 python-dotenv
 pydantic-settings
+pandas
+openpyxl  # For .xlsx files
+xlrd>=2.0.1  # For .xls files
+black     # For code formatting

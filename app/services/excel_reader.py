@@ -26,7 +26,7 @@ class ExcelTextExtractor:
                     column_text += "\n".join(df[column].astype(str).tolist())
                     important_text.append(column_text)
             
-            return important_text
+            return content
             
         except Exception as e:
             print(f"Excel reading error: {str(e)}")
