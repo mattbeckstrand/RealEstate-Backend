@@ -1,37 +1,38 @@
-from pypdf import PdfReader
-import io
-import re
+import PyPDF2
+from fastapi import UploadFile
+import asyncio
+from typing import List
+from io import BytesIO
 
-class PdfTextExtractor: 
+class PdfTextExtractor:
     @staticmethod
-    def readPdf(pdfFile):
+    async def readPdf(file: UploadFile) -> str:
+        """Read and extract text from PDF files."""
         try:
-            # Read file content
-            content = pdfFile.file.read()
+            # Read the file content
+            contents = await file.read()
             
-            # Create PDF reader
-            pdf = PdfReader(io.BytesIO(content))
+            def extract_text_from_pdf(pdf_bytes: bytes) -> str:
+                # Create PDF reader from bytes
+                pdf_reader = PyPDF2.PdfReader(BytesIO(pdf_bytes))
+                text_parts: List[str] = []
+                
+                # Extract text from each page
+                for page_num in range(len(pdf_reader.pages)):
+                    page = pdf_reader.pages[page_num]
+                    text = page.extract_text()
+                    if text:  # Only add non-empty pages
+                        text_parts.append(text)
+                
+                return "\n\n=== Page Break ===\n\n".join(text_parts)
             
-            important_text = []
-            keywords = [
-                'price', 'sqft', 'bedroom', 'bath', 'address',
-                'property', 'type', 'year', 'built', 'lot',
-                'garage', 'tax', 'zoning', 'value'
-            ]
-            
-            for page in pdf.pages:
-                text = page.extract_text()
-                # Split into lines and filter important ones
-                lines = text.split('\n')
-                filtered_lines = [
-                    line.strip() for line in lines
-                    if any(keyword in line.lower() for keyword in keywords)
-                ]
-                if filtered_lines:
-                    important_text.extend(filtered_lines)
-            
-            return important_text
+            # Run PDF processing in a thread pool
+            text = await asyncio.to_thread(extract_text_from_pdf, contents)
+            return text
             
         except Exception as e:
-            print(f"PDF reading error: {str(e)}")  # Debug print
-            raise Exception(f"Failed to read PDF: {str(e)}")
+            print(f"Error reading PDF file: {str(e)}")
+            raise Exception(f"Failed to read PDF file: {str(e)}")
+        finally:
+            # Reset file pointer
+            await file.seek(0)
