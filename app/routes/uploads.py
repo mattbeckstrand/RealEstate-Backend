@@ -1,6 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from typing import List
+from typing import List, Dict, Any
 from .analysis import analyze_data
+from ..services.openai_service import OpenAIService # type: ignore
 
 router = APIRouter()
 
@@ -22,7 +23,8 @@ async def upload_files(
                 detail="Number of files and file types must match"
             )
         
-        results = []
+        # Process individual files
+        individual_results = []
         for file, file_type in zip(files, file_types):
             if not file.filename:
                 raise HTTPException(
@@ -46,11 +48,12 @@ async def upload_files(
                 )
 
             try:
-                result = await analyze_data(file=file, file_type=file_type)
-                results.append({
+                analysis_result = await analyze_data(file=file, file_type=file_type)
+                individual_results.append({
                     "filename": file.filename,
                     "file_type": file_type,
-                    "analysis": result
+                    "analysis": analysis_result.get("analysis", ""),
+                    "raw_analyses": analysis_result.get("raw_analyses", [])
                 })
             except Exception as e:
                 import traceback
@@ -60,7 +63,19 @@ async def upload_files(
                     detail=f"Error processing file {file.filename}: {str(e)}"
                 )
 
-        return results
+        # Generate combined investment analysis
+        try:
+            combined_analysis = await OpenAIService.generate_investment_analysis(individual_results)
+            return {
+                "individual_analyses": individual_results,
+                "combined_analysis": combined_analysis
+            }
+        except Exception as e:
+            print(f"Error generating combined analysis: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error generating combined analysis: {str(e)}"
+            )
 
     except Exception as e:
         import traceback

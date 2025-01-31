@@ -202,3 +202,93 @@ class OpenAIService:
         }
         
         return prompts.get(file_type, base_prompt + "Summarize key findings.")
+
+    @staticmethod
+    async def generate_investment_analysis(individual_results: List[Dict[str, Any]]) -> str:
+        """Generate a comprehensive investment analysis combining all document analyses."""
+        try:
+            # Organize analyses by type
+            analyses_by_type = {
+                'om': [],
+                'rent_roll': [],
+                'financials': []
+            }
+            
+            for result in individual_results:
+                if result['file_type'] in analyses_by_type:
+                    analyses_by_type[result['file_type']].append(result['analysis'])
+
+            # Combine all analyses into a structured prompt
+            combined_text = "=== Property Analysis Data ===\n\n"
+            
+            if analyses_by_type['om']:
+                combined_text += "OFFERING MEMORANDUM INSIGHTS:\n"
+                combined_text += "\n".join(analyses_by_type['om'])
+                combined_text += "\n\n"
+            
+            if analyses_by_type['rent_roll']:
+                combined_text += "RENT ROLL ANALYSIS:\n"
+                combined_text += "\n".join(analyses_by_type['rent_roll'])
+                combined_text += "\n\n"
+            
+            if analyses_by_type['financials']:
+                combined_text += "FINANCIAL ANALYSIS:\n"
+                combined_text += "\n".join(analyses_by_type['financials'])
+                combined_text += "\n\n"
+
+            # Create investment analysis prompt
+            system_message = """You are an expert real estate investment analyst. Based on the provided analyses from multiple documents, 
+generate a comprehensive investment analysis. Focus on:
+
+1. Key Investment Metrics:
+   - Projected IRR (if data available)
+   - Equity Multiple (if data available)
+   - Cap Rate (current and projected)
+   - Cash-on-Cash Return
+   - Break-even Analysis
+
+2. Financial Analysis:
+   - Net Operating Income (NOI)
+   - Revenue Streams Breakdown
+   - Operating Expense Ratio
+   - Debt Service Coverage Ratio (if data available)
+
+3. Market Analysis:
+   - Location Strengths/Weaknesses
+   - Market Trends
+   - Competitive Position
+
+4. Risk Assessment:
+   - Tenant Risk Analysis
+   - Market Risk Factors
+   - Financial Risk Factors
+   - Mitigation Strategies
+
+5. Investment Recommendations:
+   - Key Value-Add Opportunities
+   - Suggested Investment Strategy
+   - Exit Strategy Options
+   - Recommended Hold Period
+
+Format the output in a clear, structured manner with sections and bullet points.
+Include specific numbers and calculations where possible.
+If certain metrics cannot be calculated, explain why and what additional information would be needed.
+Conclude with a clear investment recommendation."""
+
+            def run_completion() -> ChatCompletion:
+                return client.chat.completions.create(
+                    model=OpenAIService.MODEL_NAME,
+                    messages=[
+                        {"role": "system", "content": system_message},
+                        {"role": "user", "content": combined_text}
+                    ],
+                    temperature=0.7,
+                    max_tokens=3000
+                )
+
+            completion = await asyncio.to_thread(run_completion)
+            return completion.choices[0].message.content or ""
+
+        except Exception as e:
+            print(f"Error in investment analysis: {str(e)}")
+            raise

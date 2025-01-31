@@ -36,3 +36,4 @@ class PdfTextExtractor:
         finally:
             # Reset file pointer
             await file.seek(0)
+            
