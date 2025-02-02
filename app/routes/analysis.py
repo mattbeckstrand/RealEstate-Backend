@@ -21,7 +21,14 @@ async def analyze_data(file: UploadFile = File(...), file_type: str = "") -> Dic
             elif file_type in ['rent_roll', 'financials'] and any(
                 filename_lower.endswith(ext) for ext in ['.xls', '.xlsx']
             ):
-                text = await ExcelTextExtractor.readExcel(file)
+                df = await ExcelTextExtractor.readExcel(file)
+
+                # if file_type == 'rent_roll':
+                #     text = ExcelTextExtractor._process_rent_roll(df)
+                # elif file_type == 'financials':
+                #     text = ExcelTextExtractor._process_financials(df)
+                # else:
+                #     text = ExcelTextExtractor._process_general_data(df)
             else:
                 raise HTTPException(
                     status_code=400,
@@ -29,8 +36,8 @@ async def analyze_data(file: UploadFile = File(...), file_type: str = "") -> Dic
                 )
 
             # Process the extracted text with OpenAI
-            result = await OpenAIService.analyze_data(text, file_type)
-            return result
+            # result = await OpenAIService.analyze_data(text, file_type)
+            return df
             
         except Exception as e:
             print(f"Error processing file {file.filename}: {str(e)}")

@@ -2,10 +2,12 @@ import pandas as pd
 from fastapi import UploadFile
 from io import BytesIO
 from typing import List
+import numpy as np
+from pandas import DataFrame
 
 class ExcelTextExtractor:
     @staticmethod
-    async def readExcel(file: UploadFile) -> str:
+    async def readExcel(file: UploadFile) -> DataFrame:
         """Read and extract text from Excel files."""
         try:
             # Read the file content
@@ -16,25 +18,19 @@ class ExcelTextExtractor:
             df = pd.read_excel(BytesIO(contents))
             
             # Convert DataFrame to string representation
-            text_parts: List[str] = []
-            
-            # Add column names as headers
-            text_parts.append("COLUMNS:")
-            text_parts.append(", ".join(df.columns.astype(str)))
-            text_parts.append("\n")
-            
+            df.columns = df.columns.str.strip().str.lower().str.replace(r'[^a-zA-Z0-9_]', '_')
+
+            # Replace empty strings with NaN
+            df = df.replace(r'^\s*$', np.nan, regex=True)
+
+            # Drop rows and columns with too many missing values
+            df = df.dropna(thresh=int(len(df.columns) * 0.5), axis=0)  # Drop rows with >50% missing values
+            df = df.dropna(thresh=int(len(df) * 0.5), axis=1) 
+            print(df.head())
             # Process each row
-            text_parts.append("DATA:")
-            for index, row in df.iterrows():
-                # Convert row to string, handling NaN values
-                row_str = " | ".join(
-                    f"{col}: {str(val) if pd.notna(val) else 'N/A'}"
-                    for col, val in row.items()
-                )
-                text_parts.append(row_str)
             
             # Join all parts with newlines
-            return "\n".join(text_parts)
+            return df
             
         except Exception as e:
             print(f"Error reading Excel file: {str(e)}")
