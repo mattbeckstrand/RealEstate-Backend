@@ -1,7 +1,7 @@
 from openai import OpenAI
 import asyncio
-from typing import Dict, Any, List, Callable, Literal, AsyncGenerator, AsyncIterator
-from openai.types.chat import ChatCompletion, ChatCompletionChunk
+from typing import Dict, Any, List, Callable, Literal, AsyncGenerator, AsyncIterator, cast
+from openai.types.chat import ChatCompletion, ChatCompletionChunk, ChatCompletionMessage
 import time
 import os
 from ..config import Settings # type: ignore
@@ -275,15 +275,30 @@ Include specific numbers and calculations where possible.
 If certain metrics cannot be calculated, explain why and what additional information would be needed.
 Conclude with a clear investment recommendation."""
 
-            print("\nGenerating investment analysis (streaming response):\n")
-            response = ""
-            async for chunk in OpenAIService.stream_completion(system_message, combined_text):
-                chunk_text = chunk.choices[0].delta.content
-                if chunk_text:
-                    print(chunk_text, end="", flush=True)
-                    response += chunk_text
-            print("\n\nAnalysis complete!")
-            return response
+            print("\nGenerating investment analysis:\n")
+            try:
+                completion = await asyncio.to_thread(
+                    lambda: client.chat.completions.create(
+                        model=OpenAIService.MODEL_NAME,
+                        messages=[
+                            {"role": "system", "content": system_message},
+                            {"role": "user", "content": combined_text}
+                        ],
+                        temperature=0.7,
+                        max_tokens=3000
+                    )
+                )
+                
+                # Cast the completion to ensure type safety
+                message = cast(ChatCompletionMessage, completion.choices[0].message)
+                response = message.content if message.content is not None else ""
+                print(response)
+                print("\nAnalysis complete!")
+                return response
+
+            except Exception as e:
+                print(f"\nError during analysis: {str(e)}")
+                raise
 
         except Exception as e:
             print(f"Error in investment analysis: {str(e)}")
@@ -293,7 +308,7 @@ Conclude with a clear investment recommendation."""
     async def stream_completion(system_message: str, user_message: str) -> AsyncIterator[ChatCompletionChunk]:
         """Stream the completion from OpenAI API."""
         try:
-            stream = client.chat.completions.create(
+            response = client.chat.completions.create(
                 model=OpenAIService.MODEL_NAME,
                 messages=[
                     {"role": "system", "content": system_message},
@@ -304,9 +319,14 @@ Conclude with a clear investment recommendation."""
                 stream=True
             )
             
-            for chunk in stream:
+            collected_chunks = []
+            for chunk in response:
+                if chunk and chunk.choices and chunk.choices[0].delta.content:
+                    collected_chunks.append(chunk)
+                    yield chunk
                 await asyncio.sleep(0)  # Yield control back to event loop
-                yield chunk
+                
         except Exception as e:
             print(f"Error in streaming completion: {str(e)}")
-            raise
+            # If streaming fails, return error message as a chunk
+            raise  # Let the calling function handle the fallback
