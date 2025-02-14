@@ -1,0 +1,55 @@
+/api
+  /handlers
+    - fileUploadHandler.py
+    - analysisHandler.py
+    - propertyHandler.py
+  /services
+    - documentProcessingService.py
+    - financialAnalysisService.py
+    - propertyService.py
+  /models
+    - property.py
+    - analysis.py
+    - document.py
+
+
+/properties
+  POST /   (create property)
+  GET /:id (get property details)
+  GET /    (list properties)
+
+/analysis
+  POST /upload          (upload documents)
+  POST /:propertyId    (start analysis)
+  GET /:analysisId     (get analysis results)
+  PUT /:analysisId     (update/correct data)
+
+/documents
+  POST /:propertyId    (upload documents)
+  GET /:documentId     (retrieve document)
+
+3. Implementation Order:
+# Basic Setup
+Database schema setup
+Authentication setup
+Basic API structure
+# Document Processing
+File upload handling
+Basic PDF extraction
+Excel parsing
+Data categorization structure
+
+# Analysis Pipeline
+Financial calculations
+Data storage
+Manual correction interface
+
+# Property Management
+Property creation/listing
+Analysis association
+Results viewing
+
+#Enhancement Phase
+LLM integration
+Advanced data extraction
+Batch processing
