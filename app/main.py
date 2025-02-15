@@ -1,6 +1,6 @@
 from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
-from .routes import uploads, analysis # type: ignore
+from .routes import uploads, analysis, upload_analyze# type: ignore
 
 app = FastAPI(
     title='Real Estate Analysis API',
@@ -29,5 +29,6 @@ async def testApi():
 
 # Include routers
 app.include_router(router)  # Include the main router
-app.include_router(uploads.router, prefix="/api/uploads")
+app.include_router(uploads.router, prefix="/api/upload")
 app.include_router(analysis.router, prefix="/api/analysis")
+app.include_router(upload_analyze.router, prefix="/api/upload-analyze")
