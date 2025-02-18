@@ -50,31 +50,40 @@ class DataCleaner:
         category = ' '.join(category.split())
         return category.strip()
 
-    def is_valid_row(self, row: pd.Series, category: str) -> bool:
+    def is_valid_row(self, row: pd.Series, monthly_values: Dict[str, float]) -> bool:
         """
-        Check if a row contains meaningful data.
-        Returns False for rows that are empty, contain only zeros, or are header/metadata rows.
+        Check if a row contains valid data.
+        Returns True if the row has a non-empty category and at least one non-zero value.
         """
-        if not isinstance(category, str) or not category.strip():
+        # Check if category is empty or just whitespace
+        category = str(row.iloc[0]).strip()
+        if not category or category == "N/A":
             return False
 
-        # Skip header/metadata rows
-        skip_patterns = [
-            'Twelve Month Trailing',
-            'Created on',
-            'Reporting Book',
-            'As of Date',
-            'Location',
+        # Skip rows that are just headers or metadata
+        skip_keywords = [
+            "Twelve Month Trailing",
+            "Created on:",
+            "Reporting Book:",
+            "As of Date:",
+            "Location:",
+            "Statement",  # Added to catch header rows
+            "Income Statement",  # Added to catch header rows
+            "For the Period",  # Added to catch date range headers
         ]
-        if any(pattern in category for pattern in skip_patterns):
+        if any(keyword.lower() in category.lower() for keyword in skip_keywords):
             return False
 
-        # Check if all numeric values in the row are zero
-        numeric_values = [self.clean_value(val) for val in row[1:] if pd.notna(val)]
-        if not numeric_values or all(val == 0 for val in numeric_values):
+        # Skip completely empty or white rows
+        if all(pd.isna(val) or str(val).strip() == "" for val in row):
             return False
 
-        return True
+        # Skip rows where first column is empty or just spaces
+        if not category or category.isspace():
+            return False
+
+        # Check if all values are zero
+        return any(value != 0 for value in monthly_values.values())
 
     def process_t12_data(self, data: pd.DataFrame) -> pd.DataFrame:
         """Process T12 statement data into a clean, structured format."""
@@ -87,26 +96,23 @@ class DataCleaner:
 
         for idx, row in data.iterrows():
             category = row.iloc[0]  # First column contains categories
-            
-            # Skip invalid or empty rows
-            if not self.is_valid_row(row, category):
-                continue
+            if isinstance(category, str):
+                # Process monthly values
+                monthly_values = {}
+                for col in range(1, 13):  # 12 months of data
+                    if col < len(row):
+                        monthly_values[f'month_{col}'] = self.clean_value(row.iloc[col])
 
-            category_clean = self.clean_category_name(category)
-            level = self.identify_category_level(category)
+                # Only process if row contains valid data
+                if self.is_valid_row(row, monthly_values):
+                    category_clean = self.clean_category_name(category)
+                    level = self.identify_category_level(category)
 
-            # Process monthly values
-            monthly_values = {}
-            for col in range(1, 13):  # 12 months of data
-                if col < len(row):
-                    monthly_values[f'month_{col}'] = self.clean_value(row.iloc[col])
+                    clean_data.append({
+                        'category': category_clean,
+                        'level': level,
+                        **monthly_values,
+                        'total': self.clean_value(row.iloc[-1]) if len(row) > 13 else sum(monthly_values.values())
+                    })
 
-            if monthly_values:  # Only add if we have values
-                clean_data.append({
-                    'category': category_clean,
-                    'level': level,
-                    **monthly_values,
-                    'total': self.clean_value(row.iloc[-1]) if len(row) > 13 else sum(monthly_values.values())
-                })
-
-        return pd.DataFrame(clean_data)
+        return pd.DataFrame(clean_data) 
