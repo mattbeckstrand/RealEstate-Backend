@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from typing import List, Dict
+from typing import List
 from ..services.analysis import PropertyAnalysis # type: ignore
 
 router = APIRouter()
@@ -23,7 +23,7 @@ async def upload_and_analyze(
                 detail={"message": "Number of files and file types must match"}
             )
 
-        # File type validation - Convert set to list for JSON serialization
+        # File type validation
         valid_types = ["om", "t12", "rr"]  # offering memo, T12, rent roll
         if not all(ft in valid_types for ft in file_types):
             raise HTTPException(
@@ -31,13 +31,13 @@ async def upload_and_analyze(
                 detail={"message": f"Invalid file type. Must be one of: {valid_types}"}
             )
 
-        # Pass all files to analysis
-        t12Text = await PropertyAnalysis.analyzeProperty(files, file_types)
+        # Process files and get cleaned data
+        result = await PropertyAnalysis.analyzeProperty(files, file_types)
         
         # Return structured response
         return {
             "status": "success",
-            "t12Text": t12Text
+            "data": result
         }
     
     except Exception as e:
