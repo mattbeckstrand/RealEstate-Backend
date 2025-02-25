@@ -37,7 +37,8 @@ async def upload_and_analyze(
         # Return structured response
         return {
             "status": "success",
-            "data": result
+            "data": result,
+            "rental_income": result.get("rental_income", {})
         }
     
     except Exception as e:

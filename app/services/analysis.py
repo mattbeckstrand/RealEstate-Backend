@@ -21,15 +21,14 @@ class PropertyAnalysis:
                 
                 # Clean the data using DataCleaner
                 cleaned_data = cleaner.process_t12_data(df)
-                gptRev =  DataInsights(cleaned_data).t12TrailingFinancials
+                insights = DataInsights(cleaned_data)
+                rental_income = insights.analyze_rental_income()
                 # Convert to dictionary format for JSON response
                 result["t12Data"] = {
-                    "cleaned_data": cleaned_data.to_dict(orient='records'),
-                    "message": "T12 data processed successfully"
+                "cleaned_data": cleaned_data.to_dict(orient='records'),
+                "message": "T12 data processed successfully"
                 }
-                result["gpt"] = {
-                    "gpi": gptRev
-                }
+                result["rental_income"] = rental_income
 
         return result
 
