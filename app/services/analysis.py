@@ -2,6 +2,7 @@ from fastapi import UploadFile
 from typing import List, Dict, Any
 from .data_cleaner import DataCleaner # type: ignore
 import pandas as pd
+from .data_insights import DataInsights # type: ignore
 
 class PropertyAnalysis:
     @staticmethod
@@ -20,12 +21,14 @@ class PropertyAnalysis:
                 
                 # Clean the data using DataCleaner
                 cleaned_data = cleaner.process_t12_data(df)
-                
+                insights = DataInsights(cleaned_data)
+                rental_income = insights.analyze_rental_income()
                 # Convert to dictionary format for JSON response
                 result["t12Data"] = {
-                    "cleaned_data": cleaned_data.to_dict(orient='records'),
-                    "message": "T12 data processed successfully"
+                "cleaned_data": cleaned_data.to_dict(orient='records'),
+                "message": "T12 data processed successfully"
                 }
+                result["rental_income"] = rental_income
 
         return result
 
